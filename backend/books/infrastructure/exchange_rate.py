@@ -1,0 +1,73 @@
+import logging
+from decimal import Decimal, InvalidOperation
+from typing import Optional
+import requests
+from django.conf import settings
+from books.domain.exceptions import ExchangeRateUnavailableError
+from books.domain.services import ExchangeRate, ExchangeRateService
+
+logger = logging.getLogger(__name__)
+
+class ExternalExchangeRateAdapter(ExchangeRateService):
+
+    # Tasas por defecto (Fallback si la API externa falla)
+    FALLBACK_RATES = {
+        "EUR": Decimal("0.85"),
+        "USD": Decimal("1.00"),
+        "MXN": Decimal("17.00"),
+        "CLP": Decimal("900.00"),
+        "ARS": Decimal("800.00"),
+        "COP": Decimal("3900.00"),
+        "VES": Decimal("36.50"),
+    }
+
+    def __init__(self, api_url: Optional[str] = None, timeout: float = 5) -> None:
+        self._api_url = api_url or settings.EXCHANGE_RATE_API_URL
+        self._timeout = timeout
+
+    def get_exchange_rate(self, target_currency: str) -> ExchangeRate:
+        target_currency = target_currency.upper()
+
+        live_rate = self._fetch_live_rate(target_currency)
+        
+        if live_rate is not None:
+            return ExchangeRate(rate=live_rate, source="live")
+
+        fallback_rate = self._get_fallback_rate(target_currency)
+        
+        if fallback_rate is None:
+            raise ExchangeRateUnavailableError(
+                f"No hay tasa de cambio disponible para {target_currency}: "
+                "el servicio externo falló y no existe tasa por defecto."
+            )
+        return ExchangeRate(rate=fallback_rate, source="fallback")
+
+    def _fetch_live_rate(self, target_currency: str) -> Optional[Decimal]:
+        """Consulta la API externa. Devuelve None ante cualquier fallo"""
+        
+        try:
+            response = requests.get(self._api_url, timeout=self._timeout)
+            response.raise_for_status()
+            rate = Decimal(str(response.json()["rates"][target_currency]))
+        except requests.RequestException as exc:
+            # Timeout, error de red o status != 2xx
+            logger.warning("Fallo al consultar la API de cambio: %s", exc)
+            return None
+        except (ValueError, KeyError, TypeError, InvalidOperation) as exc:
+            # JSON inválido, moneda inexistente o tasa no numérica
+            logger.warning("Respuesta inválida de la API de cambio para %s: %s", target_currency, exc)
+            return None
+
+        if rate <= 0:
+            logger.warning("La API devolvió una tasa no válida para %s: %s", target_currency, rate)
+            return None
+        
+        return rate
+
+    def _get_fallback_rate(self, target_currency: str) -> Optional[Decimal]:
+        """Tasa por defecto: primero la de settings, luego la tabla interna"""
+        
+        if target_currency == settings.LOCAL_CURRENCY and settings.DEFAULT_EXCHANGE_RATE:
+            return Decimal(settings.DEFAULT_EXCHANGE_RATE)
+        
+        return self.FALLBACK_RATES.get(target_currency)

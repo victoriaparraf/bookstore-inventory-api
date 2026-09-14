@@ -119,3 +119,11 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+# Cálculo de precios
+EXCHANGE_RATE_API_URL = os.environ.get(
+    "EXCHANGE_RATE_API_URL", "https://api.exchangerate-api.com/v4/latest/USD"
+)
+LOCAL_CURRENCY = os.environ.get("LOCAL_CURRENCY", "EUR")
+DEFAULT_EXCHANGE_RATE = os.environ.get("DEFAULT_EXCHANGE_RATE", "0.85")
+PROFIT_MARGIN_PERCENTAGE = os.environ.get("PROFIT_MARGIN_PERCENTAGE", "40")
