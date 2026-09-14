@@ -5,7 +5,7 @@ class BookORM(models.Model):
     author = models.CharField(max_length=255)
     isbn = models.CharField(max_length=13, unique=True)
     cost_usd = models.DecimalField(max_digits=10, decimal_places=2)
-    selling_price_local = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    selling_price_local = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
     stock_quantity = models.PositiveIntegerField()
     category = models.CharField(max_length=100)
     supplier_country = models.CharField(max_length=2)

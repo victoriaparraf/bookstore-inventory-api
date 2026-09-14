@@ -3,16 +3,19 @@ from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 
+BASE_CURRENCY = "USD"
 
 @dataclass
 class BookPriceBreakdown:
+    """Desglose del precio: costo en USD convertido a moneda local (VES) con margen aplicado"""
+
     book_id: Optional[int]
     cost_usd: Decimal
-    exchange_rate: Decimal
+    exchange_rate: Decimal  
     cost_local: Decimal
     margin_percentage: Decimal
     selling_price_local: Decimal
-    currency: str
+    currency: str  
     rate_source: str
     calculation_timestamp: datetime
 
@@ -29,8 +32,7 @@ def compute_book_price(
     currency: str,
     rate_source: str,
 ) -> BookPriceBreakdown:
-    """Calcula el costo local y el precio de venta aplicando el margen de ganancia"""
-
+    
     rate = Decimal(str(rate))
     margin_percentage = Decimal(str(margin_percentage))
 

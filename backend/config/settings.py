@@ -121,9 +121,21 @@ MAILERS = {
 }
 
 # Cálculo de precios
+# El costo de los libros se registra en USD y el precio de venta se calcula en bolívares (VES)
 EXCHANGE_RATE_API_URL = os.environ.get(
     "EXCHANGE_RATE_API_URL", "https://api.exchangerate-api.com/v4/latest/USD"
 )
-LOCAL_CURRENCY = os.environ.get("LOCAL_CURRENCY", "EUR")
-DEFAULT_EXCHANGE_RATE = os.environ.get("DEFAULT_EXCHANGE_RATE", "0.85")
+LOCAL_CURRENCY = os.environ.get("LOCAL_CURRENCY", "VES")
+# Tasa por defecto (VES por 1 USD) si la API externa falla. Referencia: 14/09/2026
+DEFAULT_EXCHANGE_RATE = os.environ.get("DEFAULT_EXCHANGE_RATE", "842.21")
 PROFIT_MARGIN_PERCENTAGE = os.environ.get("PROFIT_MARGIN_PERCENTAGE", "40")
+
+REST_FRAMEWORK = {
+    "EXCEPTION_HANDLER": "books.infrastructure.api.exception.custom_exception_handler",
+    "DEFAULT_PAGINATION_CLASS": "books.infrastructure.api.pagination.BookPagination",
+    "COERCE_DECIMAL_TO_STRING": False,
+}
+
+CORS_ALLOWED_ORIGINS = os.environ.get(
+    "CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000"
+).split(",")
