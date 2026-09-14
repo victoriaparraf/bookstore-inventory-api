@@ -53,3 +53,9 @@ class InvalidSupplierCountryError(DomainError):
 class ExchangeRateUnavailableError(DomainError):
     """Se dispara cuando no hay tasa de cambio disponible (ni externa ni por defecto)"""
     pass
+
+class InvalidTextFieldError(DomainError):
+    """Se dispara cuando un campo de texto obligatorio está vacío"""
+
+    def __init__(self, message: str, field: str) -> None:
+        super().__init__(message, field=field)

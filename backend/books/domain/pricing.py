@@ -14,38 +14,38 @@ class BookPriceBreakdown:
     selling_price_local: Decimal
     currency: str
     rate_source: str
-    calculation_timestamp: str
+    calculation_timestamp: datetime
+
 
 def _quantize_currency(amount: Decimal) -> Decimal:
     return amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-def compute_book_price( #Costo local y precio de venta
-
+def compute_book_price(
     book_id: Optional[int],
     cost_usd: Decimal,
     rate: Decimal,
     margin_percentage: Decimal,
-    currency_label: str = "EUR",
-    rate_source: str = "live"
-
+    currency: str,
+    rate_source: str,
 ) -> BookPriceBreakdown:
+    """Calcula el costo local y el precio de venta aplicando el margen de ganancia"""
 
-    local_cost = _quantize_currency(cost_usd * rate)
+    rate = Decimal(str(rate))
+    margin_percentage = Decimal(str(margin_percentage))
 
+    cost_local = _quantize_currency(cost_usd * rate)
     margin_multiplier = Decimal("1") + (margin_percentage / Decimal("100"))
-    final_selling_price = _quantize_currency(local_cost * margin_multiplier)
-
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    selling_price_local = _quantize_currency(cost_local * margin_multiplier)
 
     return BookPriceBreakdown(
         book_id=book_id,
         cost_usd=cost_usd,
         exchange_rate=rate,
-        cost_local=local_cost,
+        cost_local=cost_local,
         margin_percentage=margin_percentage,
-        selling_price_local=final_selling_price,
-        currency=currency_label,
+        selling_price_local=selling_price_local,
+        currency=currency,
         rate_source=rate_source,
-        calculation_timestamp=timestamp
+        calculation_timestamp=datetime.now(timezone.utc),
     )
