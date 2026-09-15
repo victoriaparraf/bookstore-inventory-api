@@ -1,7 +1,16 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 import { bookApi } from "../../infrastructure/books/bookApi";
 import type { Book, BookInput } from "../../domain/book";
+import type { AppError } from "../../domain/errors";
 import { bookQueryKeys } from "./bookQueryKeys";
+
+/** Si el libro ya no existe (404, ej. borrado desde otra pestaña), se quita de la caché y se refresca el listado */
+function syncIfBookNotFound(queryClient: QueryClient, error: AppError, id: number) {
+    if (error.kind !== "not_found") return;
+    queryClient.removeQueries({ queryKey: bookQueryKeys.detail(id) });
+    return queryClient.invalidateQueries({ queryKey: bookQueryKeys.lists() });
+}
 
 /** POST /books */
 export function useCreateBook() {
@@ -26,6 +35,7 @@ export function useUpdateBook() {
             queryClient.setQueryData(bookQueryKeys.detail(book.id), book);
             return queryClient.invalidateQueries({ queryKey: bookQueryKeys.lists() });
         },
+        onError: (error, { id }) => syncIfBookNotFound(queryClient, error, id),
     });
 }
 
@@ -39,6 +49,7 @@ export function useDeleteBook() {
             queryClient.removeQueries({ queryKey: bookQueryKeys.detail(id) });
             return queryClient.invalidateQueries({ queryKey: bookQueryKeys.lists() });
         },
+        onError: (error, id) => syncIfBookNotFound(queryClient, error, id),
     });
 }
 
@@ -55,5 +66,6 @@ export function useCalculatePrice() {
             );
             return queryClient.invalidateQueries({ queryKey: bookQueryKeys.lists() });
         },
+        onError: (error, id) => syncIfBookNotFound(queryClient, error, id),
     });
 }

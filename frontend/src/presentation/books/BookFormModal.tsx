@@ -32,7 +32,11 @@ export function BookFormModal({ open, book, onClose }: BookFormModalProps) {
             }
             onClose();
         } catch (error) {
-            if (error instanceof AppError) notify.error(error);
+            if (error instanceof AppError) {
+                notify.error(error);
+                // El libro se eliminó mientras se editaba: se cierra el formulario
+                if (error.kind === "not_found") onClose();
+            }
             throw error; // El formulario marca los campos con error
         }
     }

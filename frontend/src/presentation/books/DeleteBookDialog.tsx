@@ -22,7 +22,11 @@ export function DeleteBookDialog({ book, onClose, onDeleted }: DeleteBookDialogP
                 onClose();
                 onDeleted?.();
             },
-            onError: (error) => notify.error(error),
+            onError: (error) => {
+                notify.error(error);
+                // Si ya no existe, no tiene sentido mantener abierta la confirmación
+                if (error.kind === "not_found") onClose();
+            },
         });
     }
 
