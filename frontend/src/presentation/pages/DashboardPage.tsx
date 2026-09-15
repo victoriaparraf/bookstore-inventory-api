@@ -3,6 +3,7 @@ import type { Book } from "../../domain/book";
 import type { PriceCalculation } from "../../domain/pricing";
 import { useBookCatalog } from "../../application/books/useBookCatalog";
 import { useCalculatePrice } from "../../application/books/useBookMutations";
+import { BookDetailModal } from "../books/BookDetailModal";
 import { BookFilters } from "../books/BookFilters";
 import { BookFormModal } from "../books/BookFormModal";
 import { BookTable } from "../books/BookTable";
@@ -24,6 +25,7 @@ export function DashboardPage() {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [bookToEdit, setBookToEdit] = useState<Book | null>(null);
     const [bookToDelete, setBookToDelete] = useState<Book | null>(null);
+    const [detailBookId, setDetailBookId] = useState<number | null>(null);
     const [priceResult, setPriceResult] = useState<{ book: Book; calculation: PriceCalculation } | null>(null);
 
     const lowStockThreshold = catalog.filter.type === "low-stock" ? catalog.filter.threshold : undefined;
@@ -33,9 +35,16 @@ export function DashboardPage() {
         setIsFormOpen(true);
     }
 
+    // Los modales no se apilan: al editar o eliminar desde el detalle, este se cierra
     function openEditForm(book: Book) {
+        setDetailBookId(null);
         setBookToEdit(book);
         setIsFormOpen(true);
+    }
+
+    function openDeleteDialog(book: Book) {
+        setDetailBookId(null);
+        setBookToDelete(book);
     }
 
     function handleCalculatePrice(book: Book) {
@@ -84,9 +93,10 @@ export function DashboardPage() {
                 books={catalog.books}
                 lowStockThreshold={lowStockThreshold}
                 calculatingBookId={calculatePrice.isPending ? calculatePrice.variables : undefined}
+                onView={(book) => setDetailBookId(book.id)}
                 onCalculatePrice={handleCalculatePrice}
                 onEdit={openEditForm}
-                onDelete={setBookToDelete}
+                onDelete={openDeleteDialog}
             />
         );
     }
@@ -122,6 +132,13 @@ export function DashboardPage() {
                     </div>
                 )}
             </section>
+
+            <BookDetailModal
+                bookId={detailBookId}
+                onClose={() => setDetailBookId(null)}
+                onEdit={openEditForm}
+                onDelete={openDeleteDialog}
+            />
 
             <BookFormModal open={isFormOpen} book={bookToEdit} onClose={() => setIsFormOpen(false)} />
 

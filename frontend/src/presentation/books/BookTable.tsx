@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import type { Book } from "../../domain/book";
 import { Button } from "../components/Button";
 import { formatUSD, formatVES } from "../utils/format";
@@ -8,6 +7,7 @@ interface BookTableProps {
     books: Book[];
     lowStockThreshold?: number;
     calculatingBookId?: number;
+    onView: (book: Book) => void;
     onCalculatePrice: (book: Book) => void;
     onEdit: (book: Book) => void;
     onDelete: (book: Book) => void;
@@ -17,6 +17,7 @@ export function BookTable({
     books,
     lowStockThreshold,
     calculatingBookId,
+    onView,
     onCalculatePrice,
     onEdit,
     onDelete,
@@ -39,12 +40,13 @@ export function BookTable({
                     {books.map((book) => (
                         <tr key={book.id} className="hover:bg-slate-50">
                             <td className="px-4 py-3">
-                                <Link
-                                    to={`/books/${book.id}`}
-                                    className="font-medium text-slate-900 hover:text-indigo-600 hover:underline"
+                                <button
+                                    type="button"
+                                    onClick={() => onView(book)}
+                                    className="text-left font-medium text-slate-900 hover:text-indigo-600 hover:underline"
                                 >
                                     {book.title}
-                                </Link>
+                                </button>
                                 <p className="text-xs text-slate-500">{book.author}</p>
                             </td>
                             <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-600">
@@ -68,6 +70,9 @@ export function BookTable({
                             </td>
                             <td className="px-4 py-3">
                                 <div className="flex justify-end gap-1.5">
+                                    <Button size="sm" variant="ghost" onClick={() => onView(book)}>
+                                        Ver
+                                    </Button>
                                     <Button
                                         size="sm"
                                         onClick={() => onCalculatePrice(book)}
