@@ -1,24 +1,31 @@
-# Bookstore Inventory API
+# Bookstore Inventory
 
-API REST para la gestión del inventario de una cadena de librerías, con cálculo del precio de venta sugerido a partir de tasas de cambio en tiempo real.
+Sistema de gestión de inventario para una cadena de librerías, compuesto por:
+
+- **API REST** (Django + Django REST Framework) con CRUD de libros, búsqueda, stock bajo y cálculo del precio de venta sugerido con tasas de cambio en tiempo real.
+- **Interfaz web SPA** (React + TypeScript) que consume y gestiona todos los endpoints de la API.
 
 El costo de los libros se registra en **dólares (USD)** y el precio de venta se calcula en **bolívares (VES)**, aplicando la tasa de cambio actual y un margen de ganancia del 40%.
 
 ## Tabla de contenido
 
 - [Tecnologías](#tecnologías)
+- [Estructura del repositorio](#estructura-del-repositorio)
 - [Arquitectura](#arquitectura)
 - [Requisitos previos](#requisitos-previos)
 - [Variables de entorno](#variables-de-entorno)
 - [Instalación y ejecución con Docker (recomendado)](#instalación-y-ejecución-con-docker-recomendado)
 - [Instalación y ejecución sin Docker](#instalación-y-ejecución-sin-docker)
-- [Endpoints](#endpoints)
-- [Ejemplos de uso](#ejemplos-de-uso)
+- [Endpoints de la API](#endpoints-de-la-api)
+- [Ejemplos de uso de la API](#ejemplos-de-uso-de-la-api)
 - [Reglas de negocio](#reglas-de-negocio)
 - [Manejo de errores](#manejo-de-errores)
+- [Interfaz web (SPA)](#interfaz-web-spa)
 - [Colección de Postman](#colección-de-postman)
 
 ## Tecnologías
+
+**Backend**
 
 - Python 3.13
 - Django 6.1
@@ -26,11 +33,38 @@ El costo de los libros se registra en **dólares (USD)** y el precio de venta se
 - django-cors-headers
 - requests (consumo de la API de tasas de cambio)
 - SQLite
+
+**Frontend**
+
+- React 19 + TypeScript
+- Vite 8
+- Tailwind CSS 4
+- TanStack Query 5 (estado del servidor, caché y estados de carga)
+- React Hook Form + Zod (formularios validados)
+- Axios (cliente HTTP)
+- Sonner (notificaciones toast)
+
+**Infraestructura**
+
 - Docker y Docker Compose
+
+## Estructura del repositorio
+
+```
+bookstore-inventory-api/
+├── backend/                 # API REST (Django)
+├── frontend/                # Interfaz web SPA (React)
+├── postman/                 # Colección de Postman exportada
+├── docker-compose.yml       # Levanta backend y frontend juntos
+├── .env.example             # Plantilla de variables de entorno del backend
+└── README.md
+```
 
 ## Arquitectura
 
-El backend sigue una arquitectura por capas (hexagonal), separando la lógica de negocio del framework:
+Backend y frontend siguen una **arquitectura por capas**, separando las reglas de negocio de los frameworks.
+
+### Backend
 
 ```
 backend/
@@ -59,6 +93,42 @@ backend/
     └── migrations/
 ```
 
+### Frontend
+
+```
+frontend/src/
+├── domain/                    # Tipos y reglas de negocio (TypeScript puro, sin React)
+│   ├── book.ts                # Book, BookInput, filtros
+│   ├── pagination.ts          # Respuesta paginada
+│   ├── pricing.ts             # Resultado del cálculo de precio
+│   ├── validation.ts          # ISBN, costo, stock, país
+│   └── errors.ts              # AppError (400, 404, 500, 503, sin conexión)
+├── application/               # Casos de uso (hooks de React Query)
+│   ├── queryClient.ts         # Configuración global: reintentos y caché
+│   └── books/
+│       ├── useBookCatalog.ts  # Listado paginado + filtros
+│       ├── useBook.ts         # Detalle de un libro
+│       ├── useBookMutations.ts# Crear, editar, eliminar y calcular precio
+│       ├── bookQueryKeys.ts   # Claves de caché
+│       └── bookFormSchema.ts  # Validación del formulario (Zod)
+├── infrastructure/            # Comunicación con la API
+│   ├── http/
+│   │   ├── httpClient.ts      # Axios + interceptor de errores
+│   │   └── apiError.ts        # Convierte errores HTTP en AppError
+│   └── books/
+│       └── bookApi.ts         # Una función por endpoint
+├── presentation/              # Interfaz de usuario
+│   ├── components/            # Reutilizables: Button, Modal, ConfirmDialog, Pagination, Spinner...
+│   ├── books/                 # BookTable, BookFilters, BookForm, BookDetailModal, PriceBreakdown...
+│   ├── layout/                # AppLayout
+│   ├── pages/                 # DashboardPage (vista única)
+│   └── utils/                 # Formato de moneda y notificaciones
+├── App.tsx                    # Providers (React Query, toasts)
+└── main.tsx
+```
+
+**Manejo de errores en el frontend:** `bookApi` solo describe los endpoints. Axios rechaza cualquier respuesta no 2xx, el interceptor de `httpClient` convierte todos los errores en `AppError` en un único lugar, React Query los propaga como estado y la capa de presentación decide cómo mostrarlos (toast, error bajo el campo o vista de error con "Reintentar").
+
 ## Requisitos previos
 
 **Con Docker (recomendado):**
@@ -69,12 +139,14 @@ backend/
 **Sin Docker:**
 
 - Python 3.12 o superior (Django 6 no es compatible con versiones anteriores)
-- pip
+- Node.js 22 o superior y npm
 - Git
 
 ## Variables de entorno
 
-El proyecto se configura con un archivo `.env` en la raíz del repositorio. Hay una plantilla en `.env.example`.
+### Backend
+
+Se configuran en un archivo `.env` en la raíz del repositorio. La plantilla está en `.env.example`.
 
 | Variable | Descripción | Valor por defecto |
 |---|---|---|
@@ -88,6 +160,14 @@ El proyecto se configura con un archivo `.env` en la raíz del repositorio. Hay 
 | `PROFIT_MARGIN_PERCENTAGE` | Margen de ganancia | `40` |
 | `CORS_ALLOWED_ORIGINS` | Orígenes permitidos para el frontend, separados por coma | `http://localhost:5173,http://localhost:3000` |
 
+### Frontend
+
+Se configura en `frontend/.env`. La plantilla está en `frontend/.env.example`.
+
+| Variable | Descripción | Valor por defecto |
+|---|---|---|
+| `VITE_API_URL` | URL base de la API | `http://localhost:8000` |
+
 ## Instalación y ejecución con Docker (recomendado)
 
 1. Clonar el repositorio:
@@ -97,44 +177,56 @@ El proyecto se configura con un archivo `.env` en la raíz del repositorio. Hay 
    cd bookstore-inventory-api
    ```
 
-2. Crear el archivo `.env` a partir de la plantilla:
+2. Crear los archivos de variables de entorno a partir de las plantillas:
 
    ```bash
    # Linux / macOS / Git Bash
    cp .env.example .env
+   cp frontend/.env.example frontend/.env
 
    # Windows PowerShell
    Copy-Item .env.example .env
+   Copy-Item frontend/.env.example frontend/.env
    ```
 
-3. Construir y levantar el contenedor:
+3. Construir y levantar los contenedores:
 
    ```bash
    docker compose up --build
    ```
 
-   Al arrancar, el contenedor aplica las migraciones automáticamente.
+   Al arrancar, el backend aplica las migraciones automáticamente.
 
-4. La API queda disponible en **http://localhost:8000**.
+4. Abrir la aplicación:
+
+   - **Interfaz web:** http://localhost:5173
+   - **API:** http://localhost:8000
 
 Comandos útiles:
 
 ```bash
-# Detener el contenedor
+# Levantar en segundo plano
+docker compose up -d --build
+
+# Detener los contenedores
 docker compose down
 
-# Crear un superusuario para el panel de administración
+# Ver los logs
+docker compose logs -f
+
+# Crear un superusuario para el panel de administración (http://localhost:8000/admin)
 docker compose exec backend python manage.py createsuperuser
 ```
 
-> Si el puerto 8000 ya está en uso, cambia el mapeo en `docker-compose.yml` (por ejemplo `"8001:8000"`) y usa http://localhost:8001.
+> Si los puertos 8000 o 5173 ya están en uso, cambia el mapeo en `docker-compose.yml` (por ejemplo `"8001:8000"`). Si cambias el puerto del frontend, añádelo también a `CORS_ALLOWED_ORIGINS`; si cambias el de la API, actualiza `VITE_API_URL`.
 
 ## Instalación y ejecución sin Docker
 
-1. Clonar el repositorio y entrar a la carpeta del backend:
+### Backend
+
+1. Entrar a la carpeta del backend:
 
    ```bash
-   git clone https://github.com/victoriaparraf/bookstore-inventory-api.git
    cd bookstore-inventory-api/backend
    ```
 
@@ -168,11 +260,52 @@ docker compose exec backend python manage.py createsuperuser
    python manage.py runserver
    ```
 
-6. La API queda disponible en **http://localhost:8000**.
+   La API queda disponible en **http://localhost:8000**.
 
-> Sin Docker, el archivo `.env` no se carga automáticamente y se usan los valores por defecto de la tabla de [variables de entorno](#variables-de-entorno). Para cambiarlos, define las variables en la terminal antes de ejecutar el servidor.
+> Sin Docker, el archivo `.env` no se carga automáticamente y se usan los valores por defecto de la tabla de [variables de entorno](#backend-1). Para cambiarlos, define las variables en la terminal antes de ejecutar el servidor.
 
-## Endpoints
+### Frontend
+
+En otra terminal, con el backend en marcha:
+
+1. Entrar a la carpeta del frontend:
+
+   ```bash
+   cd bookstore-inventory-api/frontend
+   ```
+
+2. Crear el archivo de variables de entorno:
+
+   ```bash
+   # Linux / macOS / Git Bash
+   cp .env.example .env
+
+   # Windows PowerShell
+   Copy-Item .env.example .env
+   ```
+
+3. Instalar las dependencias:
+
+   ```bash
+   npm install
+   ```
+
+4. Iniciar el servidor de desarrollo:
+
+   ```bash
+   npm run dev
+   ```
+
+   La interfaz queda disponible en **http://localhost:5173**.
+
+Otros scripts disponibles:
+
+```bash
+npm run build   # Compila TypeScript y genera la versión de producción en dist/
+npm run lint    # Revisa el código con ESLint
+```
+
+## Endpoints de la API
 
 URL base: `http://localhost:8000`
 
@@ -191,7 +324,7 @@ URL base: `http://localhost:8000`
 
 **Paginación:** los listados aceptan `?page={n}` y `?page_size={n}` (por defecto 10, máximo 100).
 
-## Ejemplos de uso
+## Ejemplos de uso de la API
 
 ### Crear un libro
 
@@ -354,9 +487,11 @@ Respuesta `200 OK`:
 - `supplier_country` debe ser un código de país de 2 letras (ISO 3166-1 alfa-2), por ejemplo `VE` o `ES`.
 - Si la API de tasas de cambio falla, se usa la tasa por defecto `DEFAULT_EXCHANGE_RATE`.
 
+Estas reglas se validan en el backend y también en los formularios del frontend antes de enviar la petición.
+
 ## Manejo de errores
 
-Todos los errores devuelven el mismo formato JSON:
+Todos los errores de la API devuelven el mismo formato JSON:
 
 ```json
 {
@@ -377,12 +512,69 @@ Todos los errores devuelven el mismo formato JSON:
 | `500` | `internal_error` | Error inesperado del servidor |
 | `503` | `exchange_rate_unavailable` | No hay tasa de cambio disponible: falló la API externa y no hay tasa por defecto válida |
 
+## Interfaz web (SPA)
+
+Aplicación de **una sola página**: todas las acciones (detalle, creación, edición, confirmación de borrado y desglose del precio) ocurren en la misma vista mediante modales, sin recargar ni cambiar de página. Integra la totalidad de los endpoints de la API.
+
+### Dashboard de inventario (listado y búsqueda)
+
+- Catálogo de libros en una tabla con título, autor, ISBN, categoría, costo en USD, precio de venta en bolívares y stock.
+- **Paginación** de resultados proveniente del backend (`GET /books?page=…&page_size=…`).
+- **Panel de filtros**:
+  - **Todos:** listado completo (`GET /books`).
+  - **Por categoría:** búsqueda por categoría, sin distinguir mayúsculas (`GET /books/search`).
+  - **Stock bajo:** libros con stock menor o igual a un umbral configurable (`GET /books/low-stock`). Los libros con stock bajo se resaltan en rojo.
+- **Detalle del libro** en un modal (`GET /books/{id}`), abriéndolo desde el título o el botón **Ver**.
+
+### Gestión de libros (creación, edición y eliminación)
+
+- **Formularios validados** para crear (`POST /books`) y editar (`PUT /books/{id}`). Antes de enviar la petición se valida:
+  - ISBN de 10 o 13 dígitos (se permiten guiones).
+  - Costo mayor a 0 y con máximo 2 decimales.
+  - Stock entero no negativo.
+  - Título, autor y categoría obligatorios.
+  - País proveedor de 2 letras.
+- Los errores que devuelve el backend por campo (por ejemplo, ISBN duplicado) se muestran debajo del campo correspondiente.
+- **Eliminación** (`DELETE /books/{id}`) con **modal de confirmación** para evitar borrados accidentales.
+
+### Módulo de cálculo de precios (integración externa)
+
+- Botón **Calcular precio** en cada fila del listado y **Calcular precio de venta** en el detalle del libro (`POST /books/{id}/calculate-price`).
+- Muestra en tiempo real el **desglose del cálculo**: costo original (USD), tasa de cambio aplicada, costo en bolívares, margen de ganancia y precio de venta final en VES.
+- Indica si la tasa es **en tiempo real** o la **tasa por defecto**, y avisa con una notificación cuando se usó la tasa por defecto.
+- El nuevo precio se refleja al instante en el listado y en el detalle.
+
+### Manejo de estados y errores
+
+- **Indicadores de carga:** spinner en la carga inicial, indicador "Actualizando…" al cambiar de página o filtro, y spinner en los botones mientras se envía una petición (los botones se desactivan para evitar envíos duplicados).
+- **Notificaciones (toasts)** de éxito al crear, editar, eliminar y calcular precios.
+- **Notificaciones de error** con un título según el código devuelto por la API:
+
+  | Código | Mensaje mostrado |
+  |---|---|
+  | `400` | Datos no válidos + detalle del error |
+  | `404` | No encontrado |
+  | `500` | Error del servidor |
+  | `503` | Servicio no disponible |
+  | Sin conexión | Sin conexión: verifica que el backend esté en marcha |
+
+- Si falla la carga del listado, se muestra una vista de error con el botón **Reintentar**. Los errores temporales (sin conexión o 500) se reintentan automáticamente.
+- Si un libro ya no existe (404, por ejemplo porque se eliminó desde otra pestaña), se cierra el modal abierto y el listado se actualiza.
+- Estados vacíos cuando no hay libros o ningún libro coincide con el filtro.
+
 ## Colección de Postman
 
-La colección con todas las peticiones está en la carpeta [`postman/`](postman/).
+La colección con las peticiones a todos los endpoints está en [`postman/bookstore-inventory-api.postman_collection.json`](postman/bookstore-inventory-api.postman_collection.json).
+
+Contiene tres carpetas:
+
+- **CRUD:** crear, listar, listar paginado, obtener por ID, actualizar y eliminar.
+- **Búsqueda:** por categoría, stock bajo con umbral y stock bajo con el umbral por defecto.
+- **Cálculo Precio:** calcular el precio de venta.
 
 Para usarla:
 
 1. Abrir Postman y seleccionar **Import**.
-2. Elegir el archivo `.json` de la carpeta `postman/`.
-3. Con la API en marcha, ejecutar las peticiones.
+2. Elegir el archivo `postman/bookstore-inventory-api.postman_collection.json`.
+3. En la pestaña **Variables** de la colección, asignar `base_url` = `http://localhost:8000`.
+4. Con la API en marcha, ejecutar las peticiones. Las que usan un ID en la URL (`/books/2`, `/books/3/calculate-price`) deben ajustarse al ID de un libro existente.
