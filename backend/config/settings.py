@@ -139,3 +139,5 @@ REST_FRAMEWORK = {
 CORS_ALLOWED_ORIGINS = os.environ.get(
     "CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000"
 ).split(",")
+
+EXCHANGE_RATE_TIMEOUT = float(os.environ.get("EXCHANGE_RATE_TIMEOUT", "5"))
